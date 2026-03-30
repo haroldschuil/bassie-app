@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bassie">
+  <title>Bassie 🐍</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:      #0d0d1a;
+      --surface: #161628;
+      --card:    #1e1e38;
+      --border:  #2a2a50;
+      --accent:  #7cfc5e;
+      --warm:    #f5a623;
+      --danger:  #ff5f7e;
+      --text:    #e8e8f0;
+      --muted:   #7070a0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(124,252,94,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 60% at 10% 90%, rgba(78,203,113,0.05) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .app {
+      position: relative; z-index: 1;
+      max-width: 420px; margin: 0 auto;
+      padding: 0 0 120px 0;
+    }
+
+    /* SETUP SCREEN */
+    #setupScreen {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      overflow-y: auto;
+    }
+    #setupScreen.hidden { display: none; }
+    .setup-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px 22px;
+      width: 100%; max-width: 400px;
+    }
+    .setup-box h2 {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 1.4rem; color: var(--accent); margin-bottom: 6px;
+    }
+    .setup-intro {
+      font-size: 0.72rem; color: var(--muted);
+      line-height: 1.8; margin-bottom: 22px;
+    }
+    .setup-intro a { color: var(--accent); text-decoration: none; }
+    .setup-intro code {
+      background: var(--surface); padding: 1px 5px;
+      border-radius: 4px; font-size: 0.68rem; color: var(--text);
+    }
+    .setup-field { margin-bottom: 11px; }
+    .setup-field label {
+      display: block; font-size: 0.62rem;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 5px;
+    }
+    .setup-field input {
+      width: 100%; padding: 10px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Space Mono', monospace; font-size: 0.72rem;
+      outline: none;
+    }
+    .setup-field input:focus { border-color: var(--accent); }
+    .setup-field input::placeholder { color: var(--muted); opacity: 0.5; }
+    .btn-setup-save {
+      width: 100%; margin-top: 18px; padding: 14px;
+      background: linear-gradient(135deg, #7cfc5e, #39b54a);
+      color: #001a05; border: none; border-radius: 10px;
+      font-family: 'Space Mono', monospace; font-weight: 700;
+      font-size: 0.82rem; cursor: pointer;
+    }
+    .setup-error {
+      margin-top: 10px; font-size: 0.7rem;
+      color: var(--danger); text-align: center; min-height: 20px;
+    }
+
+    /* SYNC BAR */
+    .sync-bar {
+      display: flex; align-items: center; gap: 7px;
+      padding: 8px 18px 2px; font-size: 0.63rem; color: var(--muted);
+    }
+    .sync-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); flex-shrink: 0;
+    }
+    .sync-dot.ok      { background: var(--accent); }
+    .sync-dot.error   { background: var(--danger); }
+    .sync-dot.loading { background: var(--warm); animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* HEADER */
+    header {
+      padding: 18px 18px 12px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .snake-icon { font-size: 2.2rem; animation: sway 4s ease-in-out infinite; }
+    @keyframes sway { 0%,100%{transform:rotate(-5deg)} 50%{transform:rotate(5deg)} }
+    .header-text h1 {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 1.6rem; color: var(--accent); letter-spacing: -0.5px;
+    }
+    .header-text p {
+      font-size: 0.62rem; color: var(--muted);
+      letter-spacing: 2px; text-transform: uppercase;
+    }
+    .btn-settings {
+      background: none; border: 1px solid var(--border);
+      color: var(--muted); width: 36px; height: 36px;
+      border-radius: 10px; font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* STATUS CARDS */
+    .status-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; padding: 0 14px 14px;
+    }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px 14px;
+      position: relative; overflow: hidden;
+    }
+    .stat-card::after {
+      content: ''; position: absolute;
+      bottom: -10px; right: -10px;
+      width: 60px; height: 60px; border-radius: 50%; opacity: 0.08;
+    }
+    .stat-card.food::after { background: var(--warm); }
+    .stat-card.shed::after { background: var(--accent); }
+    .stat-label {
+      font-size: 0.6rem; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+    }
+    .stat-days {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 2rem; line-height: 1;
+    }
+    .stat-days.urgent  { color: var(--danger); }
+    .stat-days.warning { color: var(--warm); }
+    .stat-days.ok      { color: var(--accent); }
+    .stat-sub { font-size: 0.62rem; color: var(--muted); margin-top: 4px; }
+
+    /* ALERT */
+    .alert-banner {
+      margin: 0 14px 12px; padding: 13px 15px;
+      border-radius: 12px; border: 1px solid;
+      font-size: 0.76rem; line-height: 1.5; display: none;
+    }
+    .alert-banner.food-alert { background: rgba(255,95,126,0.1); border-color: var(--danger); color: #ffa0b5; }
+    .alert-banner.shed-alert { background: rgba(124,252,94,0.08); border-color: var(--accent); color: #a8ffb0; }
+    .alert-banner.show { display: block; }
+
+    /* SECTION HEAD */
+    .section-head {
+      padding: 4px 18px 8px;
+      font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: 0.72rem; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--muted);
+    }
+
+    /* ACTION BUTTONS */
+    .action-row { display: flex; gap: 10px; padding: 0 14px 16px; }
+    .btn {
+      flex: 1; padding: 14px 10px; border-radius: 12px;
+      border: none; font-family: 'Space Mono', monospace;
+      font-size: 0.72rem; font-weight: 700; cursor: pointer;
+      transition: transform 0.12s, opacity 0.15s;
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn-food { background: linear-gradient(135deg, #f5a623, #f07b10); color: #1a0a00; }
+    .btn-shed { background: linear-gradient(135deg, #7cfc5e, #39b54a); color: #001a05; }
+    .btn-icon { font-size: 1.4rem; }
+
+    /* PREDICTIONS */
+    .predict-card {
+      margin: 0 14px 14px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px;
+    }
+    .predict-title {
+      font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: 0.68rem; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+    }
+    .predict-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid var(--border);
+      font-size: 0.72rem;
+    }
+    .predict-row:last-child { border-bottom: none; }
+    .predict-key { color: var(--muted); }
+    .predict-val { font-weight: 700; color: var(--text); }
+    .predict-val.soon { color: var(--warm); }
+
+    /* NOTIFICATIONS */
+    .notif-section { margin: 0 14px 14px; }
+    .btn-notif {
+      width: 100%; padding: 12px; border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-family: 'Space Mono', monospace;
+      font-size: 0.72rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-notif.active {
+      background: rgba(124,252,94,0.1);
+      border-color: var(--accent); color: var(--accent);
+    }
+
+    /* INFO */
+    .info-card {
+      margin: 0 14px 14px;
+      background: rgba(124,252,94,0.04);
+      border: 1px solid rgba(124,252,94,0.12);
+      border-radius: 12px; padding: 13px 15px;
+      font-size: 0.68rem; line-height: 1.8; color: var(--muted);
+    }
+    .info-card b { color: var(--accent); }
+
+    /* LOG */
+    .log-list { padding: 0 14px; }
+    .log-entry {
+      display: flex; align-items: center; gap: 11px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(42,42,80,0.5);
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1} }
+    .log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .log-dot.food { background: var(--warm); }
+    .log-dot.shed { background: var(--accent); }
+    .log-date { font-size: 0.66rem; color: var(--muted); min-width: 90px; }
+    .log-type { font-size: 0.71rem; font-weight: 700; flex: 1; }
+    .log-type.food { color: var(--warm); }
+    .log-type.shed { color: var(--accent); }
+    .log-delete {
+      background: none; border: none; color: var(--muted);
+      font-size: 0.85rem; cursor: pointer; padding: 4px 6px;
+      border-radius: 6px; opacity: 0.35; transition: opacity 0.15s;
+    }
+    .log-delete:hover { opacity: 1; color: var(--danger); }
+
+    /* MODAL */
+    .modal-bg {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      z-index: 50; align-items: flex-end; justify-content: center;
+    }
+    .modal-bg.open { display: flex; }
+    .modal {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px 20px 0 0; padding: 26px 20px 40px;
+      width: 100%; max-width: 420px;
+      animation: slideUp 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+    }
+    @keyframes slideUp { from{transform:translateY(100%)} }
+    .modal h2 {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 1.25rem; margin-bottom: 16px;
+    }
+    .modal label {
+      display: block; font-size: 0.65rem;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 6px;
+    }
+    .modal input[type="date"] {
+      width: 100%; padding: 11px 13px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-family: 'Space Mono', monospace; font-size: 0.85rem;
+      margin-bottom: 16px; outline: none;
+    }
+    .modal input[type="date"]:focus { border-color: var(--accent); }
+    .modal-btns { display: flex; gap: 10px; }
+    .modal-btns button {
+      flex: 1; padding: 12px; border-radius: 10px; border: none;
+      font-family: 'Space Mono', monospace; font-size: 0.76rem;
+      font-weight: 700; cursor: pointer;
+    }
+    .btn-confirm { background: var(--accent); color: #001a05; }
+    .btn-cancel  { background: var(--surface); color: var(--muted); border: 1px solid var(--border) !important; }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--accent); color: #001a05;
+      font-family: 'Space Mono', monospace; font-size: 0.73rem; font-weight: 700;
+      padding: 11px 22px; border-radius: 40px;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 100; white-space: nowrap;
+    }
+    .toast.error { background: var(--danger); color: #fff; }
+    .toast.show  { transform: translateX(-50%) translateY(0); }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div id="setupScreen">
+  <div class="setup-box">
+    <h2>🔧 Firebase instellen</h2>
+    <p class="setup-intro">
+      Eenmalig instellen zodat Joost en Harold dezelfde data delen.<br><br>
+      <b>Stap 1:</b> Ga naar <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a><br>
+      <b>Stap 2:</b> Nieuw project aanmaken (bijv. <code>bassie-slang</code>)<br>
+      <b>Stap 3:</b> Klik op <b>Firestore Database</b> en maak een database aan in <b>testmodus</b><br>
+      <b>Stap 4:</b> Ga naar <b>Projectinstellingen</b> (tandwiel) &rarr; voeg een <b>Web app</b> toe<br>
+      <b>Stap 5:</b> Kopieer de waarden uit het <code>firebaseConfig</code>-blok hieronder in:
+    </p>
+    <div class="setup-field">
+      <label>API Key</label>
+      <input id="cfg_apiKey" type="text" placeholder="AIzaSy...">
+    </div>
+    <div class="setup-field">
+      <label>Auth Domain</label>
+      <input id="cfg_authDomain" type="text" placeholder="bassie-slang.firebaseapp.com">
+    </div>
+    <div class="setup-field">
+      <label>Project ID</label>
+      <input id="cfg_projectId" type="text" placeholder="bassie-slang">
+    </div>
+    <div class="setup-field">
+      <label>App ID</label>
+      <input id="cfg_appId" type="text" placeholder="1:123456789:web:abc123...">
+    </div>
+    <button class="btn-setup-save" onclick="saveConfig()">Verbinding testen en opslaan</button>
+    <div class="setup-error" id="setupError"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="mainApp">
+  <div class="sync-bar">
+    <div class="sync-dot loading" id="syncDot"></div>
+    <span id="syncText">Verbinding maken...</span>
+  </div>
+
+  <header>
+    <div class="header-left">
+      <div class="snake-icon">🐍</div>
+      <div class="header-text">
+        <h1>Bassie</h1>
+        <p>rode rattenslang &bull; dagboek</p>
+      </div>
+    </div>
+    <button class="btn-settings" onclick="openSettings()" title="Firebase instellingen">⚙️</button>
+  </header>
+
+  <div class="alert-banner food-alert" id="foodAlert"></div>
+  <div class="alert-banner shed-alert" id="shedAlert"></div>
+
+  <div class="status-grid">
+    <div class="stat-card food">
+      <div class="stat-label">Laatste eten</div>
+      <div class="stat-days ok" id="foodDays">...</div>
+      <div class="stat-sub" id="foodDate">laden</div>
+    </div>
+    <div class="stat-card shed">
+      <div class="stat-label">Laatste vervelling</div>
+      <div class="stat-days ok" id="shedDays">...</div>
+      <div class="stat-sub" id="shedDate">laden</div>
+    </div>
+  </div>
+
+  <div class="section-head">Registreren</div>
+  <div class="action-row">
+    <button class="btn btn-food" id="btnFood" onclick="openModal('food')" disabled>
+      <span class="btn-icon">🐭</span>Bassie heeft gegeten
+    </button>
+    <button class="btn btn-shed" id="btnShed" onclick="openModal('shed')" disabled>
+      <span class="btn-icon">✨</span>Bassie is verveld
+    </button>
+  </div>
+
+  <div class="section-head">Voorspelling</div>
+  <div class="predict-card">
+    <div class="predict-title">Op basis van Bassie's eigen data</div>
+    <div class="predict-row">
+      <span class="predict-key">Volgende maaltijd</span>
+      <span class="predict-val" id="nextFood">--</span>
+    </div>
+    <div class="predict-row">
+      <span class="predict-key">Gem. voedingsinterval</span>
+      <span class="predict-val" id="avgFood">--</span>
+    </div>
+    <div class="predict-row">
+      <span class="predict-key">Volgende vervelling</span>
+      <span class="predict-val" id="nextShed">--</span>
+    </div>
+    <div class="predict-row">
+      <span class="predict-key">Gem. vervelinterval</span>
+      <span class="predict-val" id="avgShed">--</span>
+    </div>
+  </div>
+
+  <div class="notif-section">
+    <button class="btn-notif" id="notifBtn" onclick="toggleNotifications()">
+      <span id="notifIcon">🔕</span>
+      <span id="notifText">Meldingen inschakelen</span>
+    </button>
+  </div>
+
+  <div class="info-card">
+    <b>Rode rattenslang (~2 jaar):</b><br>
+    Voeding: elke <b>7&ndash;14 dagen</b>. Bassie's eigen gemiddelde is leidend.<br>
+    Vervelling: elke <b>6&ndash;12 weken</b> als volwassene. Tekenen: doffe schubben, blauwe ogen. Tijdens vervelling: niet voeren.
+  </div>
+
+  <div class="section-head">Geschiedenis</div>
+  <div class="log-list" id="logList">
+    <div style="padding:16px 0;color:var(--muted);font-size:0.72rem;">Laden...</div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle"></h2>
+    <label for="dateInput">Datum</label>
+    <input type="date" id="dateInput">
+    <div class="modal-btns">
+      <button class="btn-cancel"  onclick="closeModal()">Annuleren</button>
+      <button class="btn-confirm" onclick="confirmEntry()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp }        from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// Historische data uit de spreadsheet
+const HIST_FOOD = [
+  '2025-05-30','2025-07-06','2025-07-14','2025-08-02','2025-08-11','2025-08-21',
+  '2026-01-02','2026-01-19','2026-02-06','2026-03-12','2026-03-29',
+  '2026-09-04','2026-09-18','2026-10-01','2026-10-12','2026-10-21',
+  '2026-11-03','2026-11-16','2026-12-01','2026-12-16'
+];
+const HIST_SHED = ['2025-07-19','2026-02-06','2026-03-27','2026-08-21','2026-09-04'];
+
+let db = null;
+let allEntries = [];
+let seeded = false;
+
+// ---- CONFIG ----
+function getConfig() {
+  const r = localStorage.getItem('bassie_fb_cfg');
+  return r ? JSON.parse(r) : null;
+}
+
+// ---- SETUP ----
+window.saveConfig = async function() {
+  const cfg = {
+    apiKey:     document.getElementById('cfg_apiKey').value.trim(),
+    authDomain: document.getElementById('cfg_authDomain').value.trim(),
+    projectId:  document.getElementById('cfg_projectId').value.trim(),
+    appId:      document.getElementById('cfg_appId').value.trim(),
+  };
+  const errEl = document.getElementById('setupError');
+  if (!cfg.apiKey || !cfg.projectId || !cfg.appId) {
+    errEl.textContent = 'Vul alle velden in.'; return;
+  }
+  errEl.textContent = 'Verbinding testen...';
+  try {
+    const testApp = initializeApp(cfg, 'probe-' + Date.now());
+    const testDb  = getFirestore(testApp);
+    await new Promise((res, rej) => {
+      const unsub = onSnapshot(
+        query(collection(testDb, 'events'), orderBy('date', 'asc')),
+        () => { unsub(); res(); },
+        rej
+      );
+      setTimeout(() => rej(new Error('Tijdlimiet overschreden. Controleer de Project ID.')), 8000);
+    });
+    localStorage.setItem('bassie_fb_cfg', JSON.stringify(cfg));
+    document.getElementById('setupScreen').classList.add('hidden');
+    boot(cfg);
+  } catch(e) {
+    errEl.textContent = 'Fout: ' + (e.message || 'Controleer de ingevulde waarden.');
+  }
+};
+
+window.openSettings = function() {
+  const cfg = getConfig() || {};
+  ['apiKey','authDomain','projectId','appId'].forEach(k => {
+    document.getElementById('cfg_' + k).value = cfg[k] || '';
+  });
+  document.getElementById('setupError').textContent = '';
+  document.getElementById('setupScreen').classList.remove('hidden');
+};
+
+// ---- FIREBASE INIT ----
+function boot(cfg) {
+  setSyncStatus('loading','Verbinding maken...');
+  const app = initializeApp(cfg);
+  db = getFirestore(app);
+
+  const q = query(collection(db, 'events'), orderBy('date', 'asc'));
+  onSnapshot(q,
+    snap => {
+      allEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setSyncStatus('ok', 'Gesynchroniseerd');
+      document.getElementById('btnFood').disabled = false;
+      document.getElementById('btnShed').disabled = false;
+      if (allEntries.length === 0 && !seeded) {
+        seeded = true; seedData();
+      } else {
+        render();
+      }
+    },
+    err => {
+      setSyncStatus('error', 'Verbindingsfout: ' + err.code);
+    }
+  );
+}
+
+async function seedData() {
+  setSyncStatus('loading','Historische data laden...');
+  for (const d of HIST_FOOD) await addDoc(collection(db,'events'), {type:'food', date:d});
+  for (const d of HIST_SHED) await addDoc(collection(db,'events'), {type:'shed', date:d});
+  showToast('Historische data geladen! 📂');
+}
+
+// ---- SCHRIJVEN / VERWIJDEREN ----
+async function writeEntry(type, dateStr) {
+  if (allEntries.some(e => e.type === type && e.date === dateStr)) {
+    showToast('Al geregistreerd op die datum', true); return;
+  }
+  try {
+    await addDoc(collection(db,'events'), { type, date: dateStr });
+  } catch(e) { showToast('Opslaan mislukt', true); }
+}
+
+window.deleteEntry = async function(id) {
+  if (!confirm('Deze invoer verwijderen?')) return;
+  try {
+    await deleteDoc(doc(db,'events',id));
+    showToast('Verwijderd');
+  } catch(e) { showToast('Verwijderen mislukt', true); }
+};
+
+// ---- BEREKENINGEN ----
+const today = () => new Date().toISOString().slice(0,10);
+const daysBetween = (a,b) => Math.round((new Date(b)-new Date(a))/86400000);
+const daysSince   = s => { const t=new Date(); t.setHours(0,0,0,0); return Math.round((t-new Date(s))/86400000); };
+const addDays     = (s,n) => { const d=new Date(s); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+const fmtDate     = s => new Date(s).toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'});
+
+function avgInterval(dates, min, max) {
+  if (dates.length < 2) return null;
+  const gaps = [];
+  for (let i=1; i<dates.length; i++) {
+    const g = daysBetween(dates[i-1], dates[i]);
+    if (g >= min && g <= max) gaps.push(g);
+  }
+  if (!gaps.length) return null;
+  return Math.round(gaps.reduce((a,b)=>a+b,0)/gaps.length);
+}
+
+// ---- RENDER ----
+function render() {
+  const food = allEntries.filter(e=>e.type==='food').map(e=>e.date).sort();
+  const shed = allEntries.filter(e=>e.type==='shed').map(e=>e.date).sort();
+  const lf = food[food.length-1];
+  const ls = shed[shed.length-1];
+
+  // Status kaarten
+  if (lf) {
+    const fd = daysSince(lf);
+    const el = document.getElementById('foodDays');
+    el.textContent = fd + (fd===1?' dag':' dagen');
+    el.className = 'stat-days '+(fd>=14?'urgent':fd>=10?'warning':'ok');
+    document.getElementById('foodDate').textContent = fmtDate(lf);
+  }
+  if (ls) {
+    const sd = daysSince(ls);
+    const el = document.getElementById('shedDays');
+    el.textContent = sd + (sd===1?' dag':' dagen');
+    el.className = 'stat-days '+(sd>=90?'urgent':sd>=60?'warning':'ok');
+    document.getElementById('shedDate').textContent = fmtDate(ls);
+  }
+
+  // Voorspellingen
+  const af = avgInterval(food, 1, 60);   // voeding: negeer gaten groter dan 60 dagen (winterpauze)
+  const as = avgInterval(shed, 14, 200); // vervelling: negeer < 14 en > 200 dagen
+
+  if (af && lf) {
+    const nd = addDays(lf, af);
+    const dt = daysBetween(today(), nd);
+    const el = document.getElementById('nextFood');
+    el.textContent = fmtDate(nd) + (dt<=0?' ⚠️':` (+${dt}d)`);
+    el.className = 'predict-val'+(dt<=2?' soon':'');
+    document.getElementById('avgFood').textContent = `elke ${af} dagen`;
+  }
+  if (as && ls) {
+    const nd = addDays(ls, as);
+    const dt = daysBetween(today(), nd);
+    const el = document.getElementById('nextShed');
+    el.textContent = fmtDate(nd) + (dt<=0?' ⚠️':` (+${dt}d)`);
+    el.className = 'predict-val'+(dt<=7?' soon':'');
+    document.getElementById('avgShed').textContent = `elke ${as} dagen`;
+  }
+
+  // Alerts
+  const fa = document.getElementById('foodAlert');
+  const sa = document.getElementById('shedAlert');
+  if (lf && af && daysSince(lf) >= af) {
+    fa.textContent = `🐭 Bassie heeft al ${daysSince(lf)} dagen niet gegeten! Gemiddeld eet hij elke ${af} dagen.`;
+    fa.classList.add('show');
+  } else fa.classList.remove('show');
+  if (ls && as && daysSince(ls) >= as-14) {
+    sa.textContent = `✨ Bassie kan binnenkort vervellen. Laatste vervelling was ${daysSince(ls)} dagen geleden.`;
+    sa.classList.add('show');
+  } else sa.classList.remove('show');
+
+  // Geschiedenis
+  const sorted = [...allEntries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40);
+  const log = document.getElementById('logList');
+  if (!sorted.length) {
+    log.innerHTML = '<div style="padding:16px 0;color:var(--muted);font-size:0.72rem;">Nog geen registraties.</div>';
+    return;
+  }
+  log.innerHTML = sorted.map(e=>`
+    <div class="log-entry">
+      <div class="log-dot ${e.type}"></div>
+      <div class="log-date">${fmtDate(e.date)}</div>
+      <div class="log-type ${e.type}">${e.type==='food'?'🐭 Gegeten':'✨ Verveld'}</div>
+      <button class="log-delete" onclick="deleteEntry('${e.id}')" title="Verwijderen">✕</button>
+    </div>`).join('');
+
+  // Melding check
+  if (af && lf && daysSince(lf) >= af) checkNotify(daysSince(lf), af);
+}
+
+// ---- MODAL ----
+let curType = null;
+window.openModal = function(t) {
+  curType = t;
+  document.getElementById('modalTitle').textContent =
+    t==='food'?'🐭 Bassie heeft gegeten':'✨ Bassie is verveld';
+  document.getElementById('dateInput').value = today();
+  document.getElementById('modalBg').classList.add('open');
+};
+window.closeModal = function() {
+  document.getElementById('modalBg').classList.remove('open'); curType=null;
+};
+window.confirmEntry = async function() {
+  const d = document.getElementById('dateInput').value;
+  if (!d || !curType) return;
+  await writeEntry(curType, d);
+  closeModal();
+  showToast(curType==='food'?'Maaltijd opgeslagen! 🐭':'Vervelling opgeslagen! ✨');
+};
+document.getElementById('modalBg').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+
+// ---- MELDINGEN ----
+let notifOn = localStorage.getItem('bassie_notif')==='1';
+function updateNotifUI() {
+  const btn=document.getElementById('notifBtn');
+  document.getElementById('notifIcon').textContent = notifOn?'🔔':'🔕';
+  document.getElementById('notifText').textContent = notifOn?'Meldingen actief':'Meldingen inschakelen';
+  btn.className = 'btn-notif'+(notifOn?' active':'');
+}
+window.toggleNotifications = async function() {
+  if (!('Notification' in window)) { showToast('Niet ondersteund door deze browser',true); return; }
+  if (notifOn) {
+    notifOn=false; localStorage.setItem('bassie_notif','0');
+    updateNotifUI(); showToast('Meldingen uitgeschakeld'); return;
+  }
+  const p = await Notification.requestPermission();
+  if (p==='granted') {
+    notifOn=true; localStorage.setItem('bassie_notif','1');
+    updateNotifUI(); showToast('Meldingen ingeschakeld! 🔔');
+  } else showToast('Toestemming geweigerd',true);
+};
+function checkNotify(daysSinceFood, avg) {
+  if (!notifOn || Notification.permission!=='granted') return;
+  const last = localStorage.getItem('bassie_notif_day');
+  const t = today();
+  if (last===t) return;
+  localStorage.setItem('bassie_notif_day', t);
+  new Notification('🐍 Bassie heeft honger!', {
+    body: `Bassie heeft al ${daysSinceFood} dagen niet gegeten. Gemiddeld eet hij elke ${avg} dagen. Tijd voor een muis! 🐭`,
+    icon: 'icon-192.png', tag: 'bassie-food'
+  });
+}
+
+// ---- HELPERS ----
+function setSyncStatus(state, text) {
+  document.getElementById('syncDot').className = 'sync-dot '+state;
+  document.getElementById('syncText').textContent = text;
+}
+function showToast(msg, err=false) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast'+(err?' error':'')+' show';
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ---- BOOT ----
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+updateNotifUI();
+const cfg = getConfig();
+if (cfg) {
+  document.getElementById('setupScreen').classList.add('hidden');
+  boot(cfg);
+}
+</script>
+</body>
+</html>
